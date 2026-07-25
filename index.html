@@ -641,7 +641,7 @@ async function finalizeBooking(){
   }catch(e){ console.error('Errore salvataggio dati personali', e); }
 
   // invia i dati al webhook Zapier/Make: crea l'evento a calendario (arancione) + email a latorre@latorrehotel.it + email di conferma al cliente
-  if(CALENDAR_WEBHOOK_URL && CALENDAR_WEBHOOK_URL !== 'INSERISCI_QUI_IL_TUO_WEBHOOK_URL'){
+  if(CALENDAR_WEBHOOK_URL && CALENDAR_WEBHOOK_URL !== 'https://hooks.zapier.com/hooks/catch/28355844/44ge7pn/'){
     try{
       await fetch(CALENDAR_WEBHOOK_URL, {
         method:'POST',
