@@ -251,7 +251,7 @@
 
 <header class="hero">
   <div class="eyebrow">SPLENDID LA TORRE · MASSAGGI SERALI</div>
-  <h1>concludi la giornata con<br><em>un'ora dorata</em> tutta per te.</h1>
+  <h1>Tre sere a settimana,<br><em>un'ora dorata</em> tutta per te.</h1>
   <p class="sub">Dal 3 agosto al 30 settembre, ogni sera da martedì a domenica, tra le 17:00 e le 20:00. Un solo massaggio alla volta, con calma.</p>
 
   <div class="arc-wrap" aria-hidden="true">
@@ -362,9 +362,18 @@
       <!-- STEP 5 -->
       <div class="step-panel" data-panel="5">
         <h3>Conferma e paga</h3>
+        <div class="field" style="max-width:320px; margin-bottom:16px;">
+          <label for="fDiscount">Codice sconto (facoltativo)</label>
+          <div style="display:flex; gap:8px;">
+            <input id="fDiscount" type="text" placeholder="Es. SCONTO5" style="flex:1; text-transform:uppercase;">
+            <button type="button" class="primary-btn" id="applyDiscountBtn" style="margin-top:0; padding:11px 16px;">Applica</button>
+          </div>
+          <div class="status-msg" id="discountStatus"></div>
+        </div>
         <div class="price-summary" id="priceSummary"></div>
         <div id="paypal-button-container"></div>
-        <button class="preview-pay-btn" id="previewPayBtn" style="display:none;">Paga 65,00 € con PayPal</button>
+        <button class="preview-pay-btn" id="previewPayBtn" style="display:none;">Paga con PayPal</button>
+        <button class="primary-btn" id="freeConfirmBtn" style="display:none;">Conferma prenotazione gratuita</button>
         <div class="preview-note" id="paypalNote"></div>
       </div>
 
@@ -403,10 +412,16 @@ const MONTHS = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio'
 
 // URL del webhook Zapier/Make che crea l'evento a calendario (colore arancione) e invia
 // l'email a latorre@latorrehotel.it. Sostituisci con il tuo URL webhook reale (vedi istruzioni ricevute).
-const CALENDAR_WEBHOOK_URL = 'INSERISCI_QUI_IL_TUO_WEBHOOK_URL';
+const CALENDAR_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/28355844/44ge7pn/';
+
+// Codici sconto di test: chiave = codice (maiuscolo), valore = percentuale di sconto (0-1)
+const DISCOUNT_CODES = {
+  'SCONTO5': 0.05,
+  'PROVA100': 1.0
+};
 
 let state = { massage:null, date:null, dateLabel:null, time:null, dayData:null,
-  name:'', phone:'', email:'', note:'', code:null };
+  name:'', phone:'', email:'', note:'', code:null, discountCode:null, discountPercent:0 };
 let calMonth = { y:2026, m:7 }; // Agosto = index 7
 
 function fmtDate(d){
@@ -571,13 +586,40 @@ function renderSummary(){
   document.getElementById('summaryStrip').innerHTML = chips.join('');
   document.querySelectorAll('.chip').forEach(c=> c.addEventListener('click', ()=> goToStep(parseInt(c.dataset.goto))));
 }
-function renderPriceSummary(){
-  document.getElementById('priceSummary').innerHTML = `
-    <div class="row"><span>${state.massage.name} · ${DURATION_MIN} min</span><span>${PRICE},00 €</span></div>
-    <div class="row"><span>${state.dateLabel}, ore ${state.time}</span><span></span></div>
-    <div class="row total"><span>Totale</span><span>${PRICE},00 €</span></div>
-  `;
+function finalPrice(){
+  return Math.max(0, PRICE * (1 - state.discountPercent));
 }
+function renderPriceSummary(){
+  const fp = finalPrice();
+  let rows = `
+    <div class="row"><span>${state.massage.name} · ${DURATION_MIN} min</span><span>${PRICE.toFixed(2)} €</span></div>
+    <div class="row"><span>${state.dateLabel}, ore ${state.time}</span><span></span></div>`;
+  if(state.discountPercent > 0){
+    rows += `<div class="row"><span>Sconto (${state.discountCode}, -${Math.round(state.discountPercent*100)}%)</span><span>-${(PRICE - fp).toFixed(2)} €</span></div>`;
+  }
+  rows += `<div class="row total"><span>Totale</span><span>${fp.toFixed(2)} €</span></div>`;
+  document.getElementById('priceSummary').innerHTML = rows;
+}
+
+document.getElementById('applyDiscountBtn').addEventListener('click', ()=>{
+  const raw = document.getElementById('fDiscount').value.trim().toUpperCase();
+  const statusEl = document.getElementById('discountStatus');
+  if(!raw){
+    state.discountCode = null; state.discountPercent = 0;
+    statusEl.textContent = '';
+  } else if(DISCOUNT_CODES.hasOwnProperty(raw)){
+    state.discountCode = raw;
+    state.discountPercent = DISCOUNT_CODES[raw];
+    statusEl.textContent = `Codice applicato: -${Math.round(state.discountPercent*100)}%`;
+    statusEl.style.color = '#4C7A5A';
+  } else {
+    state.discountCode = null; state.discountPercent = 0;
+    statusEl.textContent = 'Codice non valido.';
+    statusEl.style.color = '#B04A3C';
+  }
+  renderPriceSummary();
+  setupPayment();
+});
 
 /* ---------------- STEP NAVIGATION ---------------- */
 function goToStep(n){
@@ -591,16 +633,28 @@ function goToStep(n){
 function setupPayment(){
   const container = document.getElementById('paypal-button-container');
   const previewBtn = document.getElementById('previewPayBtn');
+  const freeBtn = document.getElementById('freeConfirmBtn');
   const note = document.getElementById('paypalNote');
   container.innerHTML = '';
   previewBtn.style.display = 'none';
+  freeBtn.style.display = 'none';
   note.textContent = '';
+
+  const fp = finalPrice();
+
+  // sconto del 100%: nessun pagamento necessario, conferma diretta
+  if(fp <= 0){
+    freeBtn.style.display = 'inline-block';
+    note.textContent = 'Codice sconto del 100%: nessun pagamento richiesto.';
+    freeBtn.onclick = async ()=>{ await finalizeBooking(); };
+    return;
+  }
 
   if(window.paypal && window.paypal.Buttons){
     window.paypal.Buttons({
       style:{ layout:'vertical', color:'gold', shape:'pill', label:'paypal' },
       createOrder: (data, actions) => actions.order.create({
-        purchase_units: [{ amount: { value: PRICE.toFixed(2), currency_code: 'EUR' },
+        purchase_units: [{ amount: { value: fp.toFixed(2), currency_code: 'EUR' },
           description: `Massaggio ${state.massage.name} - ${state.dateLabel} ore ${state.time}` }]
       }),
       onApprove: async (data, actions) => {
@@ -612,6 +666,7 @@ function setupPayment(){
   } else {
     // SDK PayPal non disponibile in questo ambiente di anteprima
     previewBtn.style.display = 'inline-block';
+    previewBtn.textContent = `Paga ${fp.toFixed(2)} € con PayPal`;
     note.textContent = 'Modalità anteprima: il vero pulsante PayPal apparirà qui una volta pubblicato il sito con un Client ID valido.';
     previewBtn.onclick = async ()=>{ await finalizeBooking(); };
   }
@@ -641,7 +696,7 @@ async function finalizeBooking(){
   }catch(e){ console.error('Errore salvataggio dati personali', e); }
 
   // invia i dati al webhook Zapier/Make: crea l'evento a calendario (arancione) + email a latorre@latorrehotel.it + email di conferma al cliente
-  if(CALENDAR_WEBHOOK_URL && CALENDAR_WEBHOOK_URL !== 'https://hooks.zapier.com/hooks/catch/28355844/44ge7pn/'){
+  if(CALENDAR_WEBHOOK_URL && CALENDAR_WEBHOOK_URL !== 'INSERISCI_QUI_IL_TUO_WEBHOOK_URL'){
     try{
       await fetch(CALENDAR_WEBHOOK_URL, {
         method:'POST',
@@ -659,6 +714,9 @@ async function finalizeBooking(){
           orario: state.time,
           durata_minuti: DURATION_MIN,
           prezzo: PRICE,
+          codice_sconto: state.discountCode || '-',
+          sconto_percentuale: Math.round(state.discountPercent*100),
+          prezzo_finale: finalPrice().toFixed(2),
           colore_evento: 'arancione',
           destinatario_email_hotel: 'latorre@latorrehotel.it',
           oggetto_email_hotel: `Nuova prenotazione massaggio - ${state.surname} ${state.name}`,
@@ -674,6 +732,11 @@ async function finalizeBooking(){
   document.getElementById('confirmDetails').textContent =
     `${state.massage.name} · ${state.dateLabel} ore ${state.time} · ${state.name} ${state.surname}`;
   goToStep('confirm');
+
+  // reset per un'eventuale nuova prenotazione nella stessa sessione
+  state.discountCode = null; state.discountPercent = 0;
+  document.getElementById('fDiscount').value = '';
+  document.getElementById('discountStatus').textContent = '';
 }
 
 /* ---------------- INIT ---------------- */
