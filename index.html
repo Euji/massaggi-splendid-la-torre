@@ -347,11 +347,12 @@
       <div class="step-panel" data-panel="4">
         <h3>I tuoi dati</h3>
         <p class="hint">Ci servono per confermarti la prenotazione.</p>
+        <p class="hint" style="margin-bottom:14px;">I campi con * sono obbligatori.</p>
         <div class="form-grid">
-          <div class="field"><label for="fName">Nome</label><input id="fName" type="text" autocomplete="given-name"></div>
-          <div class="field"><label for="fSurname">Cognome</label><input id="fSurname" type="text" autocomplete="family-name"></div>
-          <div class="field"><label for="fPhone">Telefono</label><input id="fPhone" type="tel" autocomplete="tel"></div>
-          <div class="field"><label for="fEmail">Email</label><input id="fEmail" type="email" autocomplete="email"></div>
+          <div class="field"><label for="fName">Nome *</label><input id="fName" type="text" autocomplete="given-name" required></div>
+          <div class="field"><label for="fSurname">Cognome *</label><input id="fSurname" type="text" autocomplete="family-name" required></div>
+          <div class="field"><label for="fPhone">Telefono *</label><input id="fPhone" type="tel" autocomplete="tel" required placeholder="Es. 320 1234567"></div>
+          <div class="field"><label for="fEmail">Email *</label><input id="fEmail" type="email" autocomplete="email" required></div>
           <div class="field full"><label for="fNote">Note (facoltativo)</label><textarea id="fNote" rows="2" placeholder="Allergie, preferenze, richieste particolari..."></textarea></div>
         </div>
         <button class="primary-btn" id="toPaymentBtn">Vai al pagamento</button>
@@ -537,10 +538,22 @@ document.getElementById('toPaymentBtn').addEventListener('click', ()=>{
   const email = document.getElementById('fEmail').value.trim();
   const note = document.getElementById('fNote').value.trim();
   const formStatus = document.getElementById('formStatus');
+
   if(!name || !surname || !phone || !email){
     formStatus.textContent = 'Compila nome, cognome, telefono ed email per proseguire.';
     return;
   }
+  const phoneDigits = phone.replace(/[^0-9]/g,'');
+  if(phoneDigits.length < 8){
+    formStatus.textContent = 'Inserisci un numero di telefono valido (almeno 8 cifre).';
+    return;
+  }
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  if(!emailOk){
+    formStatus.textContent = 'Inserisci un indirizzo email valido.';
+    return;
+  }
+
   formStatus.textContent = '';
   state.name = name; state.surname = surname; state.phone = phone; state.email = email; state.note = note;
   renderSummary();
@@ -627,7 +640,7 @@ async function finalizeBooking(){
     }), false);
   }catch(e){ console.error('Errore salvataggio dati personali', e); }
 
-  // invia i dati al webhook Zapier/Make: crea l'evento a calendario (arancione) + email a latorre@latorrehotel.it
+  // invia i dati al webhook Zapier/Make: crea l'evento a calendario (arancione) + email a latorre@latorrehotel.it + email di conferma al cliente
   if(CALENDAR_WEBHOOK_URL && CALENDAR_WEBHOOK_URL !== 'INSERISCI_QUI_IL_TUO_WEBHOOK_URL'){
     try{
       await fetch(CALENDAR_WEBHOOK_URL, {
@@ -645,8 +658,13 @@ async function finalizeBooking(){
           data_iso: state.date,
           orario: state.time,
           durata_minuti: DURATION_MIN,
+          prezzo: PRICE,
           colore_evento: 'arancione',
-          destinatario_email: 'latorre@latorrehotel.it'
+          destinatario_email_hotel: 'latorre@latorrehotel.it',
+          oggetto_email_hotel: `Nuova prenotazione massaggio - ${state.surname} ${state.name}`,
+          corpo_email_hotel: `Nuova prenotazione ricevuta:\n\nCliente: ${state.name} ${state.surname}\nTelefono: ${state.phone}\nEmail: ${state.email}\nTrattamento: ${state.massage.name}\nData: ${state.dateLabel}\nOrario: ${state.time}\nNote: ${state.note || '-'}\nCodice prenotazione: ${code}`,
+          oggetto_email_cliente: `Prenotazione confermata - Splendid la Torre`,
+          corpo_email_cliente: `Gentile ${state.name} ${state.surname},\n\nla tua prenotazione è confermata:\n\nTrattamento: ${state.massage.name}\nData: ${state.dateLabel}\nOrario: ${state.time}\nDurata: ${DURATION_MIN} minuti\nCodice prenotazione: ${code}\n\nTi aspettiamo!\nSplendid la Torre`
         })
       });
     }catch(e){ console.error('Errore invio al webhook calendario/email', e); }
