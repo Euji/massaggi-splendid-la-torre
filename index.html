@@ -444,7 +444,7 @@ const MONTHS = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio'
 
 // URL del webhook Zapier/Make che crea l'evento a calendario (colore arancione) e invia
 // l'email a latorre@latorrehotel.it. Sostituisci con il tuo URL webhook reale (vedi istruzioni ricevute).
-const CALENDAR_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbzF7eQbiixduMM92Qp8GhQuMxJbghdtqec5SV88B-6QHbubAJ7qde0MHqmtNcKGg56NbA/exec';
+const CALENDAR_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbzRq-v96N8GiYUdmX0xZHJP4WpHhk7EywTUoSpnHAvgRF3xap44x91_85WrwoHQuJNWjg/exec';
 
 // Codici sconto di test: chiave = codice (maiuscolo), valore = percentuale di sconto (0-1)
 const DISCOUNT_CODES = {
@@ -545,17 +545,29 @@ async function loadDayAvailability(dateKey){
   slotStatus.textContent = 'Verifico la disponibilità...';
   slotRow.innerHTML = '';
 
-  let dayData = { '17:00':null, '18:00':null, '19:00':null };
-  try{
-    const res = await window.storage.get('day:'+dateKey, true);
-    if(res && res.value){ dayData = JSON.parse(res.value); }
-  }catch(e){
-    // nessuna prenotazione ancora per questo giorno
-  }
+  const dayData = await fetchDayData(dateKey);
   state.dayData = dayData;
   renderSlots();
   const allTaken = SLOTS.every(s=> dayData[s] && dayData[s].taken);
   slotStatus.textContent = allTaken ? 'Questa data è al completo: prova a scegliere un altro giorno.' : '';
+}
+
+// Interroga il backend Google Apps Script via JSONP (evita i blocchi CORS dei browser)
+function fetchDayData(dateKey){
+  return new Promise((resolve)=>{
+    if(!CALENDAR_WEBHOOK_URL || CALENDAR_WEBHOOK_URL === 'INSERISCI_QUI_IL_TUO_WEBHOOK_URL'){
+      resolve({}); return;
+    }
+    const callbackName = 'availCallback_' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    let done = false;
+    const cleanup = ()=>{ delete window[callbackName]; script.remove(); };
+    window[callbackName] = (data)=>{ done = true; cleanup(); resolve(data || {}); };
+    script.onerror = ()=>{ if(!done){ cleanup(); resolve({}); } };
+    script.src = `${CALENDAR_WEBHOOK_URL}?action=check&date=${encodeURIComponent(dateKey)}&callback=${callbackName}`;
+    document.body.appendChild(script);
+    setTimeout(()=>{ if(!done){ cleanup(); resolve({}); } }, 6000); // timeout di sicurezza
+  });
 }
 function renderSlots(){
   const slotRow = document.getElementById('slotRow');
@@ -734,30 +746,13 @@ async function finalizeBooking(){
   const code = 'SLT-' + Math.random().toString(36).slice(2,7).toUpperCase();
   state.code = code;
 
-  // aggiorna disponibilità condivisa (visibile a tutti i visitatori del sito)
-  try{
-    let dayData = { '17:00':null, '18:00':null, '19:00':null };
-    try{
-      const res = await window.storage.get('day:'+state.date, true);
-      if(res && res.value) dayData = JSON.parse(res.value);
-    }catch(e){ /* giorno non ancora presente */ }
-    dayData[state.time] = { taken:true, massage: state.massage.id, code: code, surname: state.surname };
-    await window.storage.set('day:'+state.date, JSON.stringify(dayData), true);
-  }catch(e){ console.error('Errore salvataggio disponibilità', e); }
-
-  // salva i dati di contatto solo per questo browser (non condivisi)
-  try{
-    await window.storage.set('myBooking:'+code, JSON.stringify({
-      name: state.name, surname: state.surname, phone: state.phone, email: state.email, note: state.note,
-      massage: state.massage.name, date: state.dateLabel, time: state.time
-    }), false);
-  }catch(e){ console.error('Errore salvataggio dati personali', e); }
-
-  // invia i dati al webhook Zapier/Make: crea l'evento a calendario (arancione) + email a latorre@latorrehotel.it + email di conferma al cliente
+  // invia i dati al webhook Google Apps Script: crea l'evento a calendario (arancione),
+  // registra lo slot come occupato, e invia le email a hotel e cliente.
   if(CALENDAR_WEBHOOK_URL && CALENDAR_WEBHOOK_URL !== 'INSERISCI_QUI_IL_TUO_WEBHOOK_URL'){
     try{
       await fetch(CALENDAR_WEBHOOK_URL, {
         method:'POST',
+        mode:'no-cors',
         headers:{ 'Content-Type':'text/plain;charset=utf-8' },
         body: JSON.stringify({
           tipo_evento: 'prenotazione',
@@ -822,12 +817,7 @@ document.getElementById('cancelBtn').addEventListener('click', async ()=>{
   statusEl.textContent = 'Verifico...';
   statusEl.style.color = '';
 
-  let dayData = null;
-  try{
-    const res = await window.storage.get('day:'+dateKey, true);
-    if(res && res.value) dayData = JSON.parse(res.value);
-  }catch(e){ /* nessuna prenotazione per questo giorno */ }
-
+  const dayData = await fetchDayData(dateKey);
   const slot = dayData && dayData[time];
   if(!slot || !slot.taken){
     statusEl.textContent = 'Non risulta nessuna prenotazione attiva per questa data e orario.';
@@ -840,41 +830,31 @@ document.getElementById('cancelBtn').addEventListener('click', async ()=>{
     return;
   }
 
-  // libera lo slot
-  const cancelledInfo = { massage: slot.massage, surname: slot.surname };
-  dayData[time] = null;
-  try{
-    await window.storage.set('day:'+dateKey, JSON.stringify(dayData), true);
-  }catch(e){
-    statusEl.textContent = 'Errore nel liberare lo slot, riprova.';
-    statusEl.style.color = '#B04A3C';
-    return;
-  }
-
-  statusEl.textContent = 'Prenotazione cancellata. Lo slot è di nuovo disponibile.';
-  statusEl.style.color = '#4C7A5A';
-  codeEl.value = '';
-
-  // notifica l'hotel via webhook (l'evento sul calendario Google va rimosso manualmente)
+  // notifica il backend: libera lo slot, cancella l'evento sul calendario, avvisa l'hotel
   if(CALENDAR_WEBHOOK_URL && CALENDAR_WEBHOOK_URL !== 'INSERISCI_QUI_IL_TUO_WEBHOOK_URL'){
     try{
       await fetch(CALENDAR_WEBHOOK_URL, {
         method:'POST',
+        mode:'no-cors',
         headers:{ 'Content-Type':'text/plain;charset=utf-8' },
         body: JSON.stringify({
           tipo_evento: 'cancellazione',
           codice: enteredCode,
           data: dateKey,
           orario: time,
-          tipologia_massaggio: cancelledInfo.massage,
-          cognome: cancelledInfo.surname || '',
+          tipologia_massaggio: slot.massage,
+          cognome: slot.surname || '',
           destinatario_email_hotel: 'latorre@latorrehotel.it',
           oggetto_email_hotel: `Prenotazione CANCELLATA - ${dateKey} ore ${time}`,
-          corpo_email_hotel: `Attenzione: una prenotazione è stata cancellata dal cliente.\n\nData: ${dateKey}\nOrario: ${time}\nCognome: ${cancelledInfo.surname || '-'}\nCodice: ${enteredCode}\n\nRicordati di rimuovere manualmente l'evento corrispondente dal calendario Google, se già creato. Se era previsto un rimborso PayPal, effettualo dal Dashboard PayPal.`
+          corpo_email_hotel: `Attenzione: una prenotazione è stata cancellata dal cliente.\n\nData: ${dateKey}\nOrario: ${time}\nCognome: ${slot.surname || '-'}\nCodice: ${enteredCode}\n\nSe era previsto un rimborso PayPal, effettualo dal Dashboard PayPal.`
         })
       });
     }catch(e){ console.error('Errore invio notifica cancellazione', e); }
   }
+
+  statusEl.textContent = 'Prenotazione cancellata. Lo slot è di nuovo disponibile.';
+  statusEl.style.color = '#4C7A5A';
+  codeEl.value = '';
 });
 
 /* ---------------- INIT ---------------- */
