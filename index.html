@@ -195,6 +195,13 @@
   .slot-btn:hover:not(:disabled){ border-color:var(--gold); }
   .slot-btn.selected{ background:var(--gold); border-color:var(--gold); color:#1B1206; }
   .slot-btn:disabled{ opacity:.4; text-decoration:line-through; cursor:not-allowed; }
+  .slot-btn.skeleton{
+    color:transparent; cursor:default; pointer-events:none;
+    background:linear-gradient(90deg, var(--sand) 25%, #EAE0C6 37%, var(--sand) 63%);
+    background-size:400% 100%;
+    animation:skeleton-pulse 1.3s ease infinite;
+  }
+  @keyframes skeleton-pulse{ 0%{background-position:100% 50%;} 100%{background-position:0 50%;} }
   .status-msg{ font-size:13.5px; color:var(--ink-soft); margin-top:14px; }
 
   /* form */
@@ -203,7 +210,7 @@
   .field{ display:flex; flex-direction:column; gap:6px; }
   .field.full{ grid-column:1/-1; }
   .field label{ font-size:12.5px; color:var(--ink-soft); font-weight:600; }
-  .field input, .field textarea{
+  .field input, .field textarea, .field select{
     font-family:'Manrope',sans-serif;
     padding:11px 12px;
     border:1px solid var(--line);
@@ -211,7 +218,7 @@
     background:#fff;
     font-size:14.5px;
   }
-  .field input:focus, .field textarea:focus{ outline:2px solid var(--gold); outline-offset:0; border-color:var(--gold); }
+  .field input:focus, .field textarea:focus, .field select:focus{ outline:2px solid var(--gold); outline-offset:0; border-color:var(--gold); }
 
   .primary-btn{
     background:var(--ink-teal); color:var(--linen); border:none;
@@ -398,6 +405,8 @@
     </div>
     <div class="booking-card">
       <div style="padding:24px 28px 30px;">
+        <h3>Cancella la tua prenotazione</h3>
+        <p class="hint">Trovi il codice nell'email di conferma che hai ricevuto.</p>
         <div class="form-grid">
           <div class="field">
             <label for="cancelDate">Data della prenotazione</label>
@@ -543,7 +552,7 @@ async function loadDayAvailability(dateKey){
   const slotRow = document.getElementById('slotRow');
   const slotStatus = document.getElementById('slotStatus');
   slotStatus.textContent = 'Verifico la disponibilità...';
-  slotRow.innerHTML = '';
+  slotRow.innerHTML = SLOTS.map(()=> `<button type="button" class="slot-btn skeleton" disabled>00:00<small>-- min</small></button>`).join('');
 
   const dayData = await fetchDayData(dateKey);
   state.dayData = dayData;
@@ -742,49 +751,64 @@ function addMinutesToTime(timeStr, minutes){
   return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
 }
 
-async function finalizeBooking(){
-  const code = 'SLT-' + Math.random().toString(36).slice(2,7).toUpperCase();
-  state.code = code;
-
-  // invia i dati al webhook Google Apps Script: crea l'evento a calendario (arancione),
-  // registra lo slot come occupato, e invia le email a hotel e cliente.
-  if(CALENDAR_WEBHOOK_URL && CALENDAR_WEBHOOK_URL !== 'INSERISCI_QUI_IL_TUO_WEBHOOK_URL'){
+// Invia i dati al backend Google Apps Script, riprovando automaticamente in caso di
+// problema di rete temporaneo (es. blocco intermittente di alcuni browser/estensioni).
+async function sendToBackend(payload, maxAttempts = 3){
+  if(!CALENDAR_WEBHOOK_URL || CALENDAR_WEBHOOK_URL === 'INSERISCI_QUI_IL_TUO_WEBHOOK_URL') return false;
+  for(let attempt = 1; attempt <= maxAttempts; attempt++){
     try{
       await fetch(CALENDAR_WEBHOOK_URL, {
         method:'POST',
         mode:'no-cors',
         headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          tipo_evento: 'prenotazione',
-          codice: code,
-          cognome: state.surname,
-          nome: state.name,
-          telefono: state.phone,
-          email: state.email,
-          note: state.note,
-          tipologia_massaggio: state.massage.name,
-          data: state.dateLabel,
-          data_iso: state.date,
-          orario: state.time,
-          orario_fine: addMinutesToTime(state.time, DURATION_MIN),
-          inizio_iso: toIsoDateTime(state.date, state.time),
-          fine_iso: toIsoDateTime(state.date, addMinutesToTime(state.time, DURATION_MIN)),
-          durata_minuti: DURATION_MIN,
-          prezzo: PRICE,
-          codice_sconto: state.discountCode || '-',
-          sconto_percentuale: Math.round(state.discountPercent*100),
-          prezzo_finale: finalPrice().toFixed(2),
-          stato_pagamento: state.payAtHotel ? 'Da pagare in hotel' : 'Pagato online',
-          colore_evento: 'arancione',
-          destinatario_email_hotel: 'latorre@latorrehotel.it',
-          oggetto_email_hotel: `Nuova prenotazione massaggio - ${state.surname} ${state.name}`,
-          corpo_email_hotel: `Nuova prenotazione ricevuta:\n\nCliente: ${state.name} ${state.surname}\nTelefono: ${state.phone}\nEmail: ${state.email}\nTrattamento: ${state.massage.name}\nData: ${state.dateLabel}\nOrario: ${state.time}\nNote: ${state.note || '-'}\n${state.payAtHotel ? `PAGAMENTO: il cliente deve ancora pagare ${finalPrice().toFixed(2)} € in hotel (non pagato online).` : `Pagamento: già effettuato online (${finalPrice().toFixed(2)} €).`}\nCodice prenotazione: ${code}`,
-          oggetto_email_cliente: `Prenotazione confermata - Splendid la Torre`,
-          corpo_email_cliente: `Gentile ${state.name} ${state.surname},\n\nla tua prenotazione è confermata:\n\nTrattamento: ${state.massage.name}\nData: ${state.dateLabel}\nOrario: ${state.time}\nDurata: ${DURATION_MIN} minuti\nCodice prenotazione: ${code}\n${state.payAtHotel ? `\nRicorda: dovrai saldare ${finalPrice().toFixed(2)} € direttamente in hotel all'arrivo.` : ''}\n\nTi aspettiamo!\nSplendid la Torre`
-        })
+        body: JSON.stringify(payload)
       });
-    }catch(e){ console.error('Errore invio al webhook calendario/email', e); }
+      return true; // no-cors: non possiamo leggere la risposta, ma nessun errore è stato lanciato
+    }catch(e){
+      console.warn(`Tentativo ${attempt}/${maxAttempts} verso il backend fallito`, e);
+      if(attempt < maxAttempts){
+        await new Promise(res => setTimeout(res, 1000 * attempt)); // attesa crescente tra i tentativi
+      }
+    }
   }
+  console.error('Invio al backend fallito dopo tutti i tentativi.');
+  return false;
+}
+
+async function finalizeBooking(){
+  const code = 'SLT-' + Math.random().toString(36).slice(2,7).toUpperCase();
+  state.code = code;
+
+  // invia i dati al webhook Google Apps Script (con ritentativo automatico): crea l'evento
+  // a calendario (arancione), registra lo slot come occupato, e invia le email a hotel e cliente.
+  await sendToBackend({
+    tipo_evento: 'prenotazione',
+    codice: code,
+    cognome: state.surname,
+    nome: state.name,
+    telefono: state.phone,
+    email: state.email,
+    note: state.note,
+    tipologia_massaggio: state.massage.name,
+    data: state.dateLabel,
+    data_iso: state.date,
+    orario: state.time,
+    orario_fine: addMinutesToTime(state.time, DURATION_MIN),
+    inizio_iso: toIsoDateTime(state.date, state.time),
+    fine_iso: toIsoDateTime(state.date, addMinutesToTime(state.time, DURATION_MIN)),
+    durata_minuti: DURATION_MIN,
+    prezzo: PRICE,
+    codice_sconto: state.discountCode || '-',
+    sconto_percentuale: Math.round(state.discountPercent*100),
+    prezzo_finale: finalPrice().toFixed(2),
+    stato_pagamento: state.payAtHotel ? 'Da pagare in hotel' : 'Pagato online',
+    colore_evento: 'arancione',
+    destinatario_email_hotel: 'latorre@latorrehotel.it',
+    oggetto_email_hotel: `Nuova prenotazione massaggio - ${state.surname} ${state.name}`,
+    corpo_email_hotel: `Nuova prenotazione ricevuta:\n\nCliente: ${state.name} ${state.surname}\nTelefono: ${state.phone}\nEmail: ${state.email}\nTrattamento: ${state.massage.name}\nData: ${state.dateLabel}\nOrario: ${state.time}\nNote: ${state.note || '-'}\n${state.payAtHotel ? `PAGAMENTO: il cliente deve ancora pagare ${finalPrice().toFixed(2)} € in hotel (non pagato online).` : `Pagamento: già effettuato online (${finalPrice().toFixed(2)} €).`}\nCodice prenotazione: ${code}`,
+    oggetto_email_cliente: `Prenotazione confermata - Splendid la Torre`,
+    corpo_email_cliente: `Gentile ${state.name} ${state.surname},\n\nla tua prenotazione è confermata:\n\nTrattamento: ${state.massage.name}\nData: ${state.dateLabel}\nOrario: ${state.time}\nDurata: ${DURATION_MIN} minuti\nCodice prenotazione: ${code}\n${state.payAtHotel ? `\nRicorda: dovrai saldare ${finalPrice().toFixed(2)} € direttamente in hotel all'arrivo.` : ''}\n\nTi aspettiamo!\nSplendid la Torre`
+  });
 
   document.getElementById('confirmCode').textContent = code;
   document.getElementById('confirmDetails').textContent =
@@ -830,27 +854,18 @@ document.getElementById('cancelBtn').addEventListener('click', async ()=>{
     return;
   }
 
-  // notifica il backend: libera lo slot, cancella l'evento sul calendario, avvisa l'hotel
-  if(CALENDAR_WEBHOOK_URL && CALENDAR_WEBHOOK_URL !== 'INSERISCI_QUI_IL_TUO_WEBHOOK_URL'){
-    try{
-      await fetch(CALENDAR_WEBHOOK_URL, {
-        method:'POST',
-        mode:'no-cors',
-        headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          tipo_evento: 'cancellazione',
-          codice: enteredCode,
-          data: dateKey,
-          orario: time,
-          tipologia_massaggio: slot.massage,
-          cognome: slot.surname || '',
-          destinatario_email_hotel: 'latorre@latorrehotel.it',
-          oggetto_email_hotel: `Prenotazione CANCELLATA - ${dateKey} ore ${time}`,
-          corpo_email_hotel: `Attenzione: una prenotazione è stata cancellata dal cliente.\n\nData: ${dateKey}\nOrario: ${time}\nCognome: ${slot.surname || '-'}\nCodice: ${enteredCode}\n\nSe era previsto un rimborso PayPal, effettualo dal Dashboard PayPal.`
-        })
-      });
-    }catch(e){ console.error('Errore invio notifica cancellazione', e); }
-  }
+  // notifica il backend (con ritentativo automatico): libera lo slot, cancella l'evento sul calendario, avvisa l'hotel
+  await sendToBackend({
+    tipo_evento: 'cancellazione',
+    codice: enteredCode,
+    data: dateKey,
+    orario: time,
+    tipologia_massaggio: slot.massage,
+    cognome: slot.surname || '',
+    destinatario_email_hotel: 'latorre@latorrehotel.it',
+    oggetto_email_hotel: `Prenotazione CANCELLATA - ${dateKey} ore ${time}`,
+    corpo_email_hotel: `Attenzione: una prenotazione è stata cancellata dal cliente.\n\nData: ${dateKey}\nOrario: ${time}\nCognome: ${slot.surname || '-'}\nCodice: ${enteredCode}\n\nSe era previsto un rimborso PayPal, effettualo dal Dashboard PayPal.`
+  });
 
   statusEl.textContent = 'Prenotazione cancellata. Lo slot è di nuovo disponibile.';
   statusEl.style.color = '#4C7A5A';
