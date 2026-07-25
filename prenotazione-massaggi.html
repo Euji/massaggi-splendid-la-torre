@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Massaggi Serali · Splendid la Torre</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,500;0,600;1,500&family=Manrope:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap">
+<style>
+  :root{
+    --ink-teal:#16302C;
+    --dusk-teal:#1F3F38;
+    --sand:#F2ECDC;
+    --linen:#FBF8F2;
+    --gold:#C79A56;
+    --gold-light:#E4C588;
+    --sage:#8FA593;
+    --slate-blue:#6E8FA3;
+    --ink:#152220;
+    --ink-soft:#3C4F49;
+    --line:#DDD3BC;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--sand);
+    color:var(--ink);
+    font-family:'Manrope', -apple-system, sans-serif;
+    line-height:1.5;
+  }
+  .mono{font-family:'Space Mono', monospace;}
+  h1,h2,h3{font-family:'Fraunces', Georgia, serif; margin:0; font-weight:500;}
+
+  /* ---------- HERO ---------- */
+  .hero{
+    position:relative;
+    background:radial-gradient(120% 100% at 50% 0%, var(--dusk-teal) 0%, var(--ink-teal) 60%, #0F211E 100%);
+    color:var(--linen);
+    padding:64px 24px 96px;
+    overflow:hidden;
+    text-align:center;
+  }
+  .eyebrow{
+    font-family:'Space Mono', monospace;
+    font-size:12px;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color:var(--gold-light);
+    margin-bottom:18px;
+  }
+  .hero h1{
+    font-size:clamp(32px, 5.5vw, 56px);
+    line-height:1.08;
+    max-width:820px;
+    margin:0 auto 20px;
+    font-weight:500;
+  }
+  .hero h1 em{ font-style:italic; color:var(--gold-light); font-weight:500;}
+  .hero p.sub{
+    max-width:560px;
+    margin:0 auto 40px;
+    color:#CFE0DA;
+    font-size:16px;
+  }
+  .arc-wrap{ max-width:560px; margin:0 auto 36px; }
+  .arc-wrap svg{ width:100%; height:auto; display:block; }
+  .tick-label{ font-family:'Space Mono', monospace; font-size:13px; fill:#CFE0DA; }
+  .tick-label.now{ fill:var(--gold-light); font-weight:700; }
+
+  .cta-btn{
+    display:inline-block;
+    background:var(--gold);
+    color:#1B1206;
+    font-family:'Manrope',sans-serif;
+    font-weight:700;
+    font-size:15px;
+    padding:14px 30px;
+    border:none;
+    border-radius:999px;
+    cursor:pointer;
+    text-decoration:none;
+    transition:transform .15s ease, background .15s ease;
+  }
+  .cta-btn:hover{ background:var(--gold-light); transform:translateY(-1px); }
+  .cta-btn:focus-visible{ outline:3px solid var(--gold-light); outline-offset:3px; }
+
+  /* ---------- SECTIONS ---------- */
+  .wrap{ max-width:920px; margin:0 auto; padding:0 24px; }
+  section.block{ padding:64px 0; }
+  .section-head{ text-align:center; max-width:600px; margin:0 auto 40px; }
+  .section-head .eyebrow{ color:#9C8151; }
+  .section-head h2{ font-size:clamp(24px,3.5vw,34px); color:var(--ink); }
+  .section-head p{ color:var(--ink-soft); font-size:15px; margin-top:10px; }
+
+  /* massage cards */
+  .massage-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+  @media (max-width:760px){ .massage-grid{ grid-template-columns:1fr; } }
+  .massage-card{
+    background:var(--linen);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:26px 22px;
+    text-align:left;
+    cursor:pointer;
+    transition:box-shadow .15s ease, border-color .15s ease, transform .15s ease;
+  }
+  .massage-card:hover{ transform:translateY(-2px); box-shadow:0 10px 24px rgba(22,48,44,.10); }
+  .massage-card.selected{ border-color:var(--gold); box-shadow:0 0 0 2px var(--gold) inset; }
+  .massage-card .dot{ width:10px; height:10px; border-radius:50%; margin-bottom:14px; }
+  .massage-card h3{ font-size:20px; margin-bottom:8px; }
+  .massage-card p{ color:var(--ink-soft); font-size:14px; margin:0 0 16px; min-height:42px; }
+  .massage-card .meta{ font-family:'Space Mono',monospace; font-size:13px; color:var(--ink-soft); display:flex; justify-content:space-between; border-top:1px solid var(--line); padding-top:12px; }
+
+  /* booking card */
+  .booking-card{
+    background:var(--linen);
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding:8px;
+    box-shadow:0 20px 50px rgba(22,48,44,.08);
+  }
+  .steps-nav{ display:flex; gap:6px; padding:16px 20px 0; flex-wrap:wrap; }
+  .steps-nav span{
+    font-family:'Space Mono',monospace;
+    font-size:11px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:#B7AC91;
+    padding:6px 10px;
+    border-radius:999px;
+  }
+  .steps-nav span.active{ background:var(--sand); color:var(--ink); font-weight:700; }
+  .steps-nav span::after{ content:'→'; margin-left:8px; color:#D8CDB1; }
+  .steps-nav span:last-child::after{ content:''; }
+
+  .step-panel{ display:none; padding:24px 28px 30px; }
+  .step-panel.visible{ display:block; }
+  .step-panel h3{ font-size:19px; margin-bottom:4px; }
+  .step-panel .hint{ color:var(--ink-soft); font-size:13.5px; margin-bottom:20px; }
+
+  /* summary strip */
+  .summary-strip{
+    display:flex; flex-wrap:wrap; gap:10px;
+    padding:0 28px 18px;
+  }
+  .chip{
+    font-family:'Space Mono',monospace;
+    font-size:12.5px;
+    background:var(--sand);
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:6px 12px;
+    color:var(--ink-soft);
+    cursor:pointer;
+  }
+  .chip b{ color:var(--ink); font-weight:700; }
+
+  /* calendar */
+  .cal-nav{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .cal-nav button{
+    background:none; border:1px solid var(--line); border-radius:8px;
+    width:32px; height:32px; cursor:pointer; font-size:15px; color:var(--ink);
+  }
+  .cal-nav button:disabled{ opacity:.3; cursor:not-allowed; }
+  .cal-month{ font-family:'Fraunces',serif; font-size:17px; text-transform:capitalize; }
+  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+  .cal-dow{ text-align:center; font-family:'Space Mono',monospace; font-size:11px; color:#B0A488; padding-bottom:4px; }
+  .cal-day{
+    aspect-ratio:1; display:flex; align-items:center; justify-content:center;
+    border-radius:10px; font-size:13.5px; cursor:pointer; border:1px solid transparent;
+    background:var(--sand); color:var(--ink);
+  }
+  .cal-day.empty{ background:none; cursor:default; }
+  .cal-day.disabled{ background:none; color:#CFC6AE; cursor:not-allowed; }
+  .cal-day.selected{ background:var(--gold); color:#1B1206; font-weight:700; }
+  .cal-day:not(.disabled):not(.empty):not(.selected):hover{ border-color:var(--gold); }
+  .cal-legend{ font-size:12.5px; color:var(--ink-soft); margin-top:12px; }
+
+  /* time slots */
+  .slot-row{ display:flex; gap:12px; flex-wrap:wrap; }
+  .slot-btn{
+    font-family:'Space Mono',monospace;
+    font-size:14px;
+    background:var(--sand);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:14px 18px;
+    cursor:pointer;
+    min-width:120px;
+    text-align:left;
+  }
+  .slot-btn small{ display:block; font-family:'Manrope',sans-serif; color:var(--ink-soft); font-size:11.5px; margin-top:3px; }
+  .slot-btn:hover:not(:disabled){ border-color:var(--gold); }
+  .slot-btn.selected{ background:var(--gold); border-color:var(--gold); color:#1B1206; }
+  .slot-btn:disabled{ opacity:.4; text-decoration:line-through; cursor:not-allowed; }
+  .status-msg{ font-size:13.5px; color:var(--ink-soft); margin-top:14px; }
+
+  /* form */
+  .form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:520px){ .form-grid{ grid-template-columns:1fr; } }
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field.full{ grid-column:1/-1; }
+  .field label{ font-size:12.5px; color:var(--ink-soft); font-weight:600; }
+  .field input, .field textarea{
+    font-family:'Manrope',sans-serif;
+    padding:11px 12px;
+    border:1px solid var(--line);
+    border-radius:9px;
+    background:#fff;
+    font-size:14.5px;
+  }
+  .field input:focus, .field textarea:focus{ outline:2px solid var(--gold); outline-offset:0; border-color:var(--gold); }
+
+  .primary-btn{
+    background:var(--ink-teal); color:var(--linen); border:none;
+    font-family:'Manrope',sans-serif; font-weight:700; font-size:14.5px;
+    padding:13px 24px; border-radius:10px; cursor:pointer; margin-top:18px;
+  }
+  .primary-btn:hover{ background:var(--dusk-teal); }
+  .primary-btn:disabled{ opacity:.4; cursor:not-allowed; }
+
+  /* payment */
+  .price-summary{
+    background:var(--sand); border:1px solid var(--line); border-radius:12px;
+    padding:18px 20px; margin-bottom:18px;
+  }
+  .price-summary .row{ display:flex; justify-content:space-between; font-size:14px; padding:4px 0; }
+  .price-summary .row.total{ border-top:1px solid var(--line); margin-top:8px; padding-top:10px; font-weight:700; font-size:16px; }
+  #paypal-button-container{ max-width:320px; }
+  .preview-pay-btn{
+    background:#FFC439; color:#111; border:none; font-weight:800;
+    font-family:'Manrope',sans-serif; padding:13px 20px; border-radius:24px;
+    cursor:pointer; width:100%; max-width:320px; font-size:14.5px;
+  }
+  .preview-note{ font-size:12px; color:#A08A55; margin-top:8px; max-width:320px; }
+
+  /* confirmation */
+  .confirm-box{ text-align:center; padding:20px 0; }
+  .confirm-box .code{
+    font-family:'Space Mono',monospace; font-size:22px; letter-spacing:.08em;
+    background:var(--sand); display:inline-block; padding:10px 20px; border-radius:10px; margin:14px 0;
+  }
+
+  footer{ text-align:center; padding:40px 24px 60px; color:#9C8151; font-size:13px; }
+  .visually-hidden{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="eyebrow">SPLENDID LA TORRE · MASSAGGI SERALI</div>
+  <h1>Tre sere a settimana,<br><em>un'ora dorata</em> tutta per te.</h1>
+  <p class="sub">Dal 3 agosto al 30 settembre, ogni sera da martedì a domenica, tra le 17:00 e le 20:00. Un solo massaggio alla volta, con calma.</p>
+
+  <div class="arc-wrap" aria-hidden="true">
+    <svg viewBox="0 0 560 190">
+      <defs>
+        <linearGradient id="sunGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#8FA593"/>
+          <stop offset="50%" stop-color="#C79A56"/>
+          <stop offset="100%" stop-color="#E4C588"/>
+        </linearGradient>
+        <radialGradient id="sunGlow">
+          <stop offset="0%" stop-color="#F4DFA3" stop-opacity="0.9"/>
+          <stop offset="100%" stop-color="#F4DFA3" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <path d="M 60 150 Q 280 10 500 150" fill="none" stroke="url(#sunGrad)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+      <circle cx="60" cy="150" r="26" fill="url(#sunGlow)"/>
+      <circle cx="60" cy="150" r="5.5" fill="#8FA593"/>
+      <text x="60" y="178" text-anchor="middle" class="tick-label">17</text>
+
+      <circle cx="280" cy="30" r="30" fill="url(#sunGlow)"/>
+      <circle cx="280" cy="30" r="6.5" fill="#C79A56"/>
+      <text x="280" y="60" text-anchor="middle" class="tick-label now">18</text>
+
+      <circle cx="500" cy="150" r="26" fill="url(#sunGlow)"/>
+      <circle cx="500" cy="150" r="5.5" fill="#E4C588"/>
+      <text x="500" y="178" text-anchor="middle" class="tick-label">19</text>
+    </svg>
+  </div>
+
+  <a href="#booking" class="cta-btn">Prenota il tuo massaggio</a>
+</header>
+
+<main class="wrap">
+
+  <section class="block" id="trattamenti">
+    <div class="section-head">
+      <div class="eyebrow">01 · IL TRATTAMENTO</div>
+      <h2>Tre manualità, un unico prezzo</h2>
+      <p>50 minuti, 65€. Scegli quella che il tuo corpo ti sta chiedendo oggi.</p>
+    </div>
+    <div class="massage-grid" id="massageGrid"></div>
+  </section>
+
+  <section class="block" id="booking">
+    <div class="section-head">
+      <div class="eyebrow">02 · LA PRENOTAZIONE</div>
+      <h2>Scegli data e orario</h2>
+      <p>Un solo operatore, un solo cliente per volta: gli orari già presi non sono più selezionabili.</p>
+    </div>
+
+    <div class="booking-card">
+      <div class="steps-nav">
+        <span data-step="1">Trattamento</span>
+        <span data-step="2">Data</span>
+        <span data-step="3">Orario</span>
+        <span data-step="4">I tuoi dati</span>
+        <span data-step="5">Pagamento</span>
+      </div>
+
+      <div class="summary-strip" id="summaryStrip"></div>
+
+      <!-- STEP 1 -->
+      <div class="step-panel" data-panel="1">
+        <h3>Che massaggio desideri?</h3>
+        <p class="hint">Puoi cambiarlo in qualsiasi momento prima del pagamento.</p>
+        <div class="massage-grid" id="massageGridInline"></div>
+      </div>
+
+      <!-- STEP 2 -->
+      <div class="step-panel" data-panel="2">
+        <h3>Quando vuoi venire?</h3>
+        <p class="hint">Aperti da martedì a domenica, dal 3 agosto al 30 settembre 2026. Lunedì chiuso.</p>
+        <div class="cal-nav">
+          <button id="calPrev" aria-label="Mese precedente">‹</button>
+          <div class="cal-month" id="calMonthLabel"></div>
+          <button id="calNext" aria-label="Mese successivo">›</button>
+        </div>
+        <div class="cal-grid" id="calDow"></div>
+        <div class="cal-grid" id="calGrid" style="margin-top:6px;"></div>
+        <div class="cal-legend">Le celle vuote o chiare non sono prenotabili (lunedì o fuori stagione).</div>
+      </div>
+
+      <!-- STEP 3 -->
+      <div class="step-panel" data-panel="3">
+        <h3>A che ora?</h3>
+        <p class="hint" id="slotHint">Ogni turno dura 50 minuti.</p>
+        <div class="slot-row" id="slotRow"></div>
+        <div class="status-msg" id="slotStatus"></div>
+      </div>
+
+      <!-- STEP 4 -->
+      <div class="step-panel" data-panel="4">
+        <h3>I tuoi dati</h3>
+        <p class="hint">Ci servono per confermarti la prenotazione.</p>
+        <div class="form-grid">
+          <div class="field"><label for="fName">Nome</label><input id="fName" type="text" autocomplete="given-name"></div>
+          <div class="field"><label for="fSurname">Cognome</label><input id="fSurname" type="text" autocomplete="family-name"></div>
+          <div class="field"><label for="fPhone">Telefono</label><input id="fPhone" type="tel" autocomplete="tel"></div>
+          <div class="field"><label for="fEmail">Email</label><input id="fEmail" type="email" autocomplete="email"></div>
+          <div class="field full"><label for="fNote">Note (facoltativo)</label><textarea id="fNote" rows="2" placeholder="Allergie, preferenze, richieste particolari..."></textarea></div>
+        </div>
+        <button class="primary-btn" id="toPaymentBtn">Vai al pagamento</button>
+        <div class="status-msg" id="formStatus"></div>
+      </div>
+
+      <!-- STEP 5 -->
+      <div class="step-panel" data-panel="5">
+        <h3>Conferma e paga</h3>
+        <div class="price-summary" id="priceSummary"></div>
+        <div id="paypal-button-container"></div>
+        <button class="preview-pay-btn" id="previewPayBtn" style="display:none;">Paga 65,00 € con PayPal</button>
+        <div class="preview-note" id="paypalNote"></div>
+      </div>
+
+      <!-- CONFIRMATION -->
+      <div class="step-panel" data-panel="confirm">
+        <div class="confirm-box">
+          <h3>Prenotazione confermata</h3>
+          <p>Ti aspettiamo. Conserva questo codice, ti sarà utile all'arrivo.</p>
+          <div class="code mono" id="confirmCode"></div>
+          <p class="hint" id="confirmDetails"></p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+</main>
+
+<footer>
+  Splendid la Torre — Massaggi serali · 3 agosto – 30 settembre 2026 · Martedì–Domenica, 17:00–20:00
+</footer>
+
+<script>
+/* ---------------- DATA ---------------- */
+const MASSAGES = [
+  { id:'rilassante', name:'Rilassante', tagline:'Manualità lenta e avvolgente per sciogliere la tensione della giornata.', color:'#8FA593' },
+  { id:'decontratturante', name:'Decontratturante', tagline:'Pressione mirata su collo, spalle e schiena per sciogliere i nodi.', color:'#C79A56' },
+  { id:'drenante', name:'Drenante', tagline:'Manualità linfatica per gambe leggere e circolazione stimolata.', color:'#6E8FA3' }
+];
+const PRICE = 65;
+const DURATION_MIN = 50;
+const SLOTS = ['17:00','18:00','19:00'];
+const START_DATE = new Date(2026,7,3);   // 3 agosto 2026
+const END_DATE   = new Date(2026,8,30);  // 30 settembre 2026
+const DOW = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+const MONTHS = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+
+// URL del webhook Zapier/Make che crea l'evento a calendario (colore arancione) e invia
+// l'email a latorre@latorrehotel.it. Sostituisci con il tuo URL webhook reale (vedi istruzioni ricevute).
+const CALENDAR_WEBHOOK_URL = 'INSERISCI_QUI_IL_TUO_WEBHOOK_URL';
+
+let state = { massage:null, date:null, dateLabel:null, time:null, dayData:null,
+  name:'', phone:'', email:'', note:'', code:null };
+let calMonth = { y:2026, m:7 }; // Agosto = index 7
+
+function fmtDate(d){
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function inRange(d){ return d >= START_DATE && d <= END_DATE; }
+function isMonday(d){ return d.getDay() === 1; }
+
+/* ---------------- MASSAGE CARDS ---------------- */
+function massageCardHTML(m){
+  return `<div class="massage-card" data-id="${m.id}" tabindex="0" role="button">
+    <div class="dot" style="background:${m.color}"></div>
+    <h3>${m.name}</h3>
+    <p>${m.tagline}</p>
+    <div class="meta"><span>${DURATION_MIN} min</span><span>${PRICE},00 €</span></div>
+  </div>`;
+}
+function renderMassageGrids(){
+  const html = MASSAGES.map(massageCardHTML).join('');
+  document.getElementById('massageGrid').innerHTML = html;
+  document.getElementById('massageGridInline').innerHTML = html;
+  document.querySelectorAll('.massage-card').forEach(card=>{
+    card.addEventListener('click', ()=> selectMassage(card.dataset.id));
+    card.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); selectMassage(card.dataset.id);} });
+  });
+}
+function selectMassage(id){
+  state.massage = MASSAGES.find(m=>m.id===id);
+  document.querySelectorAll('.massage-card').forEach(c=> c.classList.toggle('selected', c.dataset.id===id));
+  goToStep(2);
+  renderSummary();
+}
+
+/* ---------------- CALENDAR ---------------- */
+function renderCalendarHeader(){
+  document.getElementById('calDow').innerHTML = DOW.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+}
+function renderCalendar(){
+  const {y,m} = calMonth;
+  document.getElementById('calMonthLabel').textContent = `${MONTHS[m]} ${y}`;
+
+  const first = new Date(y,m,1);
+  const startOffset = (first.getDay()+6)%7; // Monday=0
+  const daysInMonth = new Date(y,m+1,0).getDate();
+
+  let cells = [];
+  for(let i=0;i<startOffset;i++) cells.push(null);
+  for(let day=1; day<=daysInMonth; day++) cells.push(new Date(y,m,day));
+
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = cells.map(d=>{
+    if(!d) return `<div class="cal-day empty"></div>`;
+    const valid = inRange(d) && !isMonday(d);
+    const key = fmtDate(d);
+    const selected = state.date === key;
+    const cls = ['cal-day'];
+    if(!valid) cls.push('disabled');
+    if(selected) cls.push('selected');
+    return `<button type="button" class="${cls.join(' ')}" ${valid?'':'disabled'} data-date="${key}">${d.getDate()}</button>`;
+  }).join('');
+
+  grid.querySelectorAll('.cal-day:not(.disabled):not(.empty)').forEach(btn=>{
+    btn.addEventListener('click', ()=> selectDate(btn.dataset.date));
+  });
+
+  const prevBtn = document.getElementById('calPrev'), nextBtn = document.getElementById('calNext');
+  prevBtn.disabled = (y===START_DATE.getFullYear() && m<=START_DATE.getMonth()) || (new Date(y,m-1,1) < new Date(START_DATE.getFullYear(),START_DATE.getMonth(),1));
+  nextBtn.disabled = new Date(y,m+1,1) > new Date(END_DATE.getFullYear(),END_DATE.getMonth(),1);
+}
+document.getElementById('calPrev').addEventListener('click', ()=>{ calMonth.m--; if(calMonth.m<0){calMonth.m=11;calMonth.y--;} renderCalendar(); });
+document.getElementById('calNext').addEventListener('click', ()=>{ calMonth.m++; if(calMonth.m>11){calMonth.m=0;calMonth.y++;} renderCalendar(); });
+
+async function selectDate(dateKey){
+  state.date = dateKey;
+  const d = new Date(dateKey+'T00:00:00');
+  state.dateLabel = `${DOW[(d.getDay()+6)%7]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+  state.time = null;
+  renderCalendar();
+  renderSummary();
+  await loadDayAvailability(dateKey);
+  goToStep(3);
+}
+
+/* ---------------- AVAILABILITY (shared storage) ---------------- */
+async function loadDayAvailability(dateKey){
+  const slotRow = document.getElementById('slotRow');
+  const slotStatus = document.getElementById('slotStatus');
+  slotStatus.textContent = 'Verifico la disponibilità...';
+  slotRow.innerHTML = '';
+
+  let dayData = { '17:00':null, '18:00':null, '19:00':null };
+  try{
+    const res = await window.storage.get('day:'+dateKey, true);
+    if(res && res.value){ dayData = JSON.parse(res.value); }
+  }catch(e){
+    // nessuna prenotazione ancora per questo giorno
+  }
+  state.dayData = dayData;
+  renderSlots();
+  const allTaken = SLOTS.every(s=> dayData[s] && dayData[s].taken);
+  slotStatus.textContent = allTaken ? 'Questa data è al completo: prova a scegliere un altro giorno.' : '';
+}
+function renderSlots(){
+  const slotRow = document.getElementById('slotRow');
+  slotRow.innerHTML = SLOTS.map(s=>{
+    const taken = state.dayData && state.dayData[s] && state.dayData[s].taken;
+    const selected = state.time === s;
+    return `<button type="button" class="slot-btn ${selected?'selected':''}" data-time="${s}" ${taken?'disabled':''}>
+      ${s}<small>${taken ? 'Occupato' : DURATION_MIN+' min'}</small>
+    </button>`;
+  }).join('');
+  slotRow.querySelectorAll('.slot-btn:not(:disabled)').forEach(btn=>{
+    btn.addEventListener('click', ()=> selectSlot(btn.dataset.time));
+  });
+}
+function selectSlot(time){
+  state.time = time;
+  renderSlots();
+  renderSummary();
+  goToStep(4);
+}
+
+/* ---------------- CONTACT FORM ---------------- */
+document.getElementById('toPaymentBtn').addEventListener('click', ()=>{
+  const name = document.getElementById('fName').value.trim();
+  const surname = document.getElementById('fSurname').value.trim();
+  const phone = document.getElementById('fPhone').value.trim();
+  const email = document.getElementById('fEmail').value.trim();
+  const note = document.getElementById('fNote').value.trim();
+  const formStatus = document.getElementById('formStatus');
+  if(!name || !surname || !phone || !email){
+    formStatus.textContent = 'Compila nome, cognome, telefono ed email per proseguire.';
+    return;
+  }
+  formStatus.textContent = '';
+  state.name = name; state.surname = surname; state.phone = phone; state.email = email; state.note = note;
+  renderSummary();
+  renderPriceSummary();
+  goToStep(5);
+  setupPayment();
+});
+
+/* ---------------- SUMMARY STRIP ---------------- */
+function renderSummary(){
+  const chips = [];
+  if(state.massage) chips.push(`<div class="chip" data-goto="1">Trattamento: <b>${state.massage.name}</b></div>`);
+  if(state.date) chips.push(`<div class="chip" data-goto="2">Data: <b>${state.dateLabel}</b></div>`);
+  if(state.time) chips.push(`<div class="chip" data-goto="3">Ore <b>${state.time}</b></div>`);
+  document.getElementById('summaryStrip').innerHTML = chips.join('');
+  document.querySelectorAll('.chip').forEach(c=> c.addEventListener('click', ()=> goToStep(parseInt(c.dataset.goto))));
+}
+function renderPriceSummary(){
+  document.getElementById('priceSummary').innerHTML = `
+    <div class="row"><span>${state.massage.name} · ${DURATION_MIN} min</span><span>${PRICE},00 €</span></div>
+    <div class="row"><span>${state.dateLabel}, ore ${state.time}</span><span></span></div>
+    <div class="row total"><span>Totale</span><span>${PRICE},00 €</span></div>
+  `;
+}
+
+/* ---------------- STEP NAVIGATION ---------------- */
+function goToStep(n){
+  document.querySelectorAll('.step-panel').forEach(p=> p.classList.remove('visible'));
+  document.querySelector(`.step-panel[data-panel="${n}"]`).classList.add('visible');
+  document.querySelectorAll('.steps-nav span').forEach(s=> s.classList.toggle('active', parseInt(s.dataset.step)===n));
+  document.getElementById('booking').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+/* ---------------- PAYMENT ---------------- */
+function setupPayment(){
+  const container = document.getElementById('paypal-button-container');
+  const previewBtn = document.getElementById('previewPayBtn');
+  const note = document.getElementById('paypalNote');
+  container.innerHTML = '';
+  previewBtn.style.display = 'none';
+  note.textContent = '';
+
+  if(window.paypal && window.paypal.Buttons){
+    window.paypal.Buttons({
+      style:{ layout:'vertical', color:'gold', shape:'pill', label:'paypal' },
+      createOrder: (data, actions) => actions.order.create({
+        purchase_units: [{ amount: { value: PRICE.toFixed(2), currency_code: 'EUR' },
+          description: `Massaggio ${state.massage.name} - ${state.dateLabel} ore ${state.time}` }]
+      }),
+      onApprove: async (data, actions) => {
+        await actions.order.capture();
+        await finalizeBooking();
+      },
+      onError: () => { note.textContent = 'Si è verificato un problema con PayPal. Riprova tra poco.'; }
+    }).render('#paypal-button-container');
+  } else {
+    // SDK PayPal non disponibile in questo ambiente di anteprima
+    previewBtn.style.display = 'inline-block';
+    note.textContent = 'Modalità anteprima: il vero pulsante PayPal apparirà qui una volta pubblicato il sito con un Client ID valido.';
+    previewBtn.onclick = async ()=>{ await finalizeBooking(); };
+  }
+}
+
+async function finalizeBooking(){
+  const code = 'SLT-' + Math.random().toString(36).slice(2,7).toUpperCase();
+  state.code = code;
+
+  // aggiorna disponibilità condivisa (visibile a tutti i visitatori del sito)
+  try{
+    let dayData = { '17:00':null, '18:00':null, '19:00':null };
+    try{
+      const res = await window.storage.get('day:'+state.date, true);
+      if(res && res.value) dayData = JSON.parse(res.value);
+    }catch(e){ /* giorno non ancora presente */ }
+    dayData[state.time] = { taken:true, massage: state.massage.id };
+    await window.storage.set('day:'+state.date, JSON.stringify(dayData), true);
+  }catch(e){ console.error('Errore salvataggio disponibilità', e); }
+
+  // salva i dati di contatto solo per questo browser (non condivisi)
+  try{
+    await window.storage.set('myBooking:'+code, JSON.stringify({
+      name: state.name, surname: state.surname, phone: state.phone, email: state.email, note: state.note,
+      massage: state.massage.name, date: state.dateLabel, time: state.time
+    }), false);
+  }catch(e){ console.error('Errore salvataggio dati personali', e); }
+
+  // invia i dati al webhook Zapier/Make: crea l'evento a calendario (arancione) + email a latorre@latorrehotel.it
+  if(CALENDAR_WEBHOOK_URL && CALENDAR_WEBHOOK_URL !== 'INSERISCI_QUI_IL_TUO_WEBHOOK_URL'){
+    try{
+      await fetch(CALENDAR_WEBHOOK_URL, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({
+          codice: code,
+          cognome: state.surname,
+          nome: state.name,
+          telefono: state.phone,
+          email: state.email,
+          note: state.note,
+          tipologia_massaggio: state.massage.name,
+          data: state.dateLabel,
+          data_iso: state.date,
+          orario: state.time,
+          durata_minuti: DURATION_MIN,
+          colore_evento: 'arancione',
+          destinatario_email: 'latorre@latorrehotel.it'
+        })
+      });
+    }catch(e){ console.error('Errore invio al webhook calendario/email', e); }
+  }
+
+  document.getElementById('confirmCode').textContent = code;
+  document.getElementById('confirmDetails').textContent =
+    `${state.massage.name} · ${state.dateLabel} ore ${state.time} · ${state.name} ${state.surname}`;
+  goToStep('confirm');
+}
+
+/* ---------------- INIT ---------------- */
+renderMassageGrids();
+renderCalendarHeader();
+renderCalendar();
+goToStep(1);
+
+// prova a caricare l'SDK PayPal (funzionerà una volta pubblicato con un Client ID reale)
+(function loadPaypalSdk(){
+  const s = document.createElement('script');
+  s.src = 'https://www.paypal.com/sdk/js?client-id=YOUR_PAYPAL_CLIENT_ID&currency=EUR';
+  s.onerror = ()=>{ /* fallback gestito in setupPayment() */ };
+  document.head.appendChild(s);
+})();
+</script>
+</body>
+</html>
