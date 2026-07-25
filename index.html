@@ -389,6 +389,38 @@
 
     </div>
   </section>
+
+  <section class="block" id="cancella">
+    <div class="section-head">
+      <div class="eyebrow">03 · CANCELLAZIONE</div>
+      <h2>Devi disdire?</h2>
+      <p>Inserisci data, orario e il codice che hai ricevuto alla prenotazione: lo slot tornerà subito prenotabile.</p>
+    </div>
+    <div class="booking-card">
+      <div class="step-panel visible" style="padding:24px 28px 30px;">
+        <div class="form-grid">
+          <div class="field">
+            <label for="cancelDate">Data della prenotazione</label>
+            <input type="date" id="cancelDate" min="2026-08-03" max="2026-09-30">
+          </div>
+          <div class="field">
+            <label for="cancelTime">Orario</label>
+            <select id="cancelTime">
+              <option value="17:00">17:00</option>
+              <option value="18:00">18:00</option>
+              <option value="19:00">19:00</option>
+            </select>
+          </div>
+          <div class="field full">
+            <label for="cancelCode">Codice prenotazione</label>
+            <input type="text" id="cancelCode" placeholder="Es. SLT-A7K2P" style="text-transform:uppercase;">
+          </div>
+        </div>
+        <button class="primary-btn" id="cancelBtn">Cancella prenotazione</button>
+        <div class="status-msg" id="cancelStatus"></div>
+      </div>
+    </div>
+  </section>
 </main>
 
 <footer>
@@ -412,7 +444,7 @@ const MONTHS = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio'
 
 // URL del webhook Zapier/Make che crea l'evento a calendario (colore arancione) e invia
 // l'email a latorre@latorrehotel.it. Sostituisci con il tuo URL webhook reale (vedi istruzioni ricevute).
-const CALENDAR_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/28355844/44ge7pn/';
+const CALENDAR_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/28355844/44g0eez/';
 
 // Codici sconto di test: chiave = codice (maiuscolo), valore = percentuale di sconto (0-1)
 const DISCOUNT_CODES = {
@@ -709,7 +741,7 @@ async function finalizeBooking(){
       const res = await window.storage.get('day:'+state.date, true);
       if(res && res.value) dayData = JSON.parse(res.value);
     }catch(e){ /* giorno non ancora presente */ }
-    dayData[state.time] = { taken:true, massage: state.massage.id };
+    dayData[state.time] = { taken:true, massage: state.massage.id, code: code, surname: state.surname };
     await window.storage.set('day:'+state.date, JSON.stringify(dayData), true);
   }catch(e){ console.error('Errore salvataggio disponibilità', e); }
 
@@ -728,6 +760,7 @@ async function finalizeBooking(){
         method:'POST',
         headers:{ 'Content-Type':'application/json' },
         body: JSON.stringify({
+          tipo_evento: 'prenotazione',
           codice: code,
           cognome: state.surname,
           nome: state.name,
@@ -768,6 +801,81 @@ async function finalizeBooking(){
   document.getElementById('fDiscount').value = '';
   document.getElementById('discountStatus').textContent = '';
 }
+
+/* ---------------- CANCELLAZIONE ---------------- */
+document.getElementById('cancelBtn').addEventListener('click', async ()=>{
+  const dateEl = document.getElementById('cancelDate');
+  const timeEl = document.getElementById('cancelTime');
+  const codeEl = document.getElementById('cancelCode');
+  const statusEl = document.getElementById('cancelStatus');
+
+  const dateKey = dateEl.value;
+  const time = timeEl.value;
+  const enteredCode = codeEl.value.trim().toUpperCase();
+
+  if(!dateKey || !enteredCode){
+    statusEl.textContent = 'Inserisci data e codice prenotazione.';
+    statusEl.style.color = '#B04A3C';
+    return;
+  }
+
+  statusEl.textContent = 'Verifico...';
+  statusEl.style.color = '';
+
+  let dayData = null;
+  try{
+    const res = await window.storage.get('day:'+dateKey, true);
+    if(res && res.value) dayData = JSON.parse(res.value);
+  }catch(e){ /* nessuna prenotazione per questo giorno */ }
+
+  const slot = dayData && dayData[time];
+  if(!slot || !slot.taken){
+    statusEl.textContent = 'Non risulta nessuna prenotazione attiva per questa data e orario.';
+    statusEl.style.color = '#B04A3C';
+    return;
+  }
+  if(slot.code !== enteredCode){
+    statusEl.textContent = 'Il codice inserito non corrisponde a questa prenotazione.';
+    statusEl.style.color = '#B04A3C';
+    return;
+  }
+
+  // libera lo slot
+  const cancelledInfo = { massage: slot.massage, surname: slot.surname };
+  dayData[time] = null;
+  try{
+    await window.storage.set('day:'+dateKey, JSON.stringify(dayData), true);
+  }catch(e){
+    statusEl.textContent = 'Errore nel liberare lo slot, riprova.';
+    statusEl.style.color = '#B04A3C';
+    return;
+  }
+
+  statusEl.textContent = 'Prenotazione cancellata. Lo slot è di nuovo disponibile.';
+  statusEl.style.color = '#4C7A5A';
+  codeEl.value = '';
+
+  // notifica l'hotel via webhook (l'evento sul calendario Google va rimosso manualmente)
+  if(CALENDAR_WEBHOOK_URL && CALENDAR_WEBHOOK_URL !== 'INSERISCI_QUI_IL_TUO_WEBHOOK_URL'){
+    try{
+      await fetch(CALENDAR_WEBHOOK_URL, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({
+          tipo_evento: 'cancellazione',
+          codice: enteredCode,
+          data: dateKey,
+          orario: time,
+          tipologia_massaggio: cancelledInfo.massage,
+          cognome: cancelledInfo.surname || '',
+          destinatario_email_hotel: 'latorre@latorrehotel.it',
+          oggetto_email_hotel: `Prenotazione CANCELLATA - ${dateKey} ore ${time}`,
+          corpo_email_hotel: `Attenzione: una prenotazione è stata cancellata dal cliente.\n\nData: ${dateKey}\nOrario: ${time}\nCognome: ${cancelledInfo.surname || '-'}\nCodice: ${enteredCode}\n\nRicordati di rimuovere manualmente l'evento corrispondente dal calendario Google, se già creato. Se era previsto un rimborso PayPal, effettualo dal Dashboard PayPal.`
+        })
+      });
+    }catch(e){ console.error('Errore invio notifica cancellazione', e); }
+  }
+});
 
 /* ---------------- INIT ---------------- */
 renderMassageGrids();
